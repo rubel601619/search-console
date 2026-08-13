@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -21,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
+ * @property GoogleAccount|null $googleAccount
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -30,6 +32,16 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    /**
+     * Get the user's google account.
+     *
+     * @return HasOne<GoogleAccount, $this>
+     */
+    public function googleAccount(): HasOne
+    {
+        return $this->hasOne(GoogleAccount::class);
+    }
 
     /**
      * Get the attributes that should be cast.
