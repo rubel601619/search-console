@@ -13,12 +13,18 @@ use Mockery\MockInterface;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
+
+    config()->set('services.google', [
+        'client_id' => 'test-client-id',
+        'client_secret' => 'test-client-secret',
+        'redirect' => 'http://localhost:8000/google/callback',
+    ]);
 });
 
 function fakeGoogleProvider(?SocialiteUser $user = null, ?string $redirectUrl = null): MockInterface
 {
     $provider = Mockery::mock(GoogleProvider::class);
-    $provider->shouldReceive('redirectUrl')->andReturnSelf();
+    $provider->shouldReceive('redirectUrl')->with(config('services.google.redirect'))->andReturnSelf();
     $provider->shouldReceive('with')->andReturnSelf();
     $provider->shouldReceive('scopes')->andReturnSelf();
 
@@ -63,7 +69,7 @@ test('the google callback stores the account details', function () {
 
     $this->actingAs($this->user)
         ->get(route('google.callback'))
-        ->assertRedirect(route('dashboard'));
+        ->assertRedirect(route('search-console'));
 
     $account = $this->user->googleAccount;
 
@@ -95,11 +101,30 @@ test('the google callback updates an existing account instead of creating a dupl
 
     $this->actingAs($this->user)
         ->get(route('google.callback'))
-        ->assertRedirect(route('dashboard'));
+        ->assertRedirect(route('search-console'));
 
     expect(GoogleAccount::count())->toBe(1)
         ->and($this->user->fresh()->googleAccount->email)->toBe('new@example.com')
         ->and($this->user->fresh()->googleAccount->access_token)->toBe('new-access-token');
+});
+
+test('the google callback preserves an existing refresh token when google omits it', function () {
+    GoogleAccount::factory()->for($this->user)->create([
+        'refresh_token' => 'existing-refresh-token',
+    ]);
+
+    fakeGoogleProvider(user: SocialiteUser::fake([
+        'id' => 'google-user-123',
+        'email' => 'google@example.com',
+        'token' => 'new-access-token',
+        'refreshToken' => null,
+        'expiresIn' => 3600,
+        'approvedScopes' => GoogleAuthService::SCOPES,
+    ]));
+
+    $this->actingAs($this->user)->get(route('google.callback'));
+
+    expect($this->user->fresh()->googleAccount->refresh_token)->toBe('existing-refresh-token');
 });
 
 test('an authenticated user can disconnect their google account', function () {

@@ -53,6 +53,17 @@ beforeEach(function () {
     $this->user = connectedUser();
 });
 
+test('the search console page exposes google connection status', function () {
+    $this->withoutVite();
+
+    $this->actingAs($this->user)
+        ->get(route('search-console'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('SearchConsole/Index')
+            ->where('googleConnected', true));
+});
+
 test('every search console endpoint requires a connected google account', function () {
     $user = User::factory()->create();
 
@@ -158,7 +169,7 @@ test('getAnalytics aggregates totals, daily rows, and comparison against the pre
     mockGoogleAuthClient(googleClientResponding([
         ['body' => ['rows' => [
             ['keys' => ['2026-07-01'], 'clicks' => 10, 'impressions' => 100, 'ctr' => 0.1, 'position' => 2.0],
-            ['keys' => ['2026-07-02'], 'clicks' => 20, 'impressions' => 200, 'ctr' => 0.1, 'position' => 3.0],
+            ['keys' => ['2026-07-02'], 'clicks' => 20, 'impressions' => 400, 'ctr' => 0.05, 'position' => 3.0],
         ]]],
         ['body' => ['rows' => [
             ['keys' => ['2026-06-03'], 'clicks' => 5, 'impressions' => 50, 'ctr' => 0.1, 'position' => 2.0],
@@ -174,10 +185,10 @@ test('getAnalytics aggregates totals, daily rows, and comparison against the pre
         ),
     );
 
-    expect($analytics['totals'])->toBe(['clicks' => 30, 'impressions' => 300, 'ctr' => 0.1, 'position' => 2.67])
+    expect($analytics['totals'])->toBe(['clicks' => 30, 'impressions' => 500, 'ctr' => 0.06, 'position' => 2.8])
         ->and($analytics['previous']['clicks'])->toBe(5)
         ->and($analytics['comparison']['clicks'])->toBe(500.0)
-        ->and($analytics['comparison']['position'])->toBe(33.5)
+        ->and($analytics['comparison']['position'])->toBe(40.0)
         ->and($analytics['daily'])->toHaveCount(2)
         ->and($analytics['daily'][0]['key'])->toBe('2026-07-01');
 

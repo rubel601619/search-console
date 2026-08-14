@@ -8,6 +8,7 @@ use Google\Client;
 use Google\Service\SearchConsole;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Laravel\Socialite\Contracts\Factory as Socialite;
 use Laravel\Socialite\Two\GoogleProvider;
@@ -98,23 +99,37 @@ class GoogleAuthService
      */
     public function refreshAccessToken(GoogleAccount $account): void
     {
-        if ($account->refresh_token === null) {
-            throw new RuntimeException('The google account has no refresh token to refresh with.');
-        }
+        Cache::lock("google-token-refresh:{$account->getKey()}", 15)->block(5, function () use ($account): void {
+            $account->refresh();
 
-        $credentials = $this->clientFactory->make()
-            ->fetchAccessTokenWithRefreshToken($account->refresh_token);
+            if (! $account->hasExpired()) {
+                return;
+            }
 
-        if (isset($credentials['error'])) {
-            throw new RuntimeException(
-                $credentials['error_description'] ?? 'Google could not refresh the access token.',
-            );
-        }
+            if ($account->refresh_token === null) {
+                throw new RuntimeException('The google account has no refresh token to refresh with.');
+            }
 
-        $account->forceFill([
-            'access_token' => $credentials['access_token'],
-            'expires_at' => now()->addSeconds($credentials['expires_in'] ?? 3600),
-        ])->save();
+            $credentials = $this->clientFactory->make()
+                ->fetchAccessTokenWithRefreshToken($account->refresh_token);
+
+            if (isset($credentials['error']) || empty($credentials['access_token'])) {
+                throw new RuntimeException(
+                    $credentials['error_description'] ?? 'Google could not refresh the access token.',
+                );
+            }
+
+            $updates = [
+                'access_token' => $credentials['access_token'],
+                'expires_at' => now()->addSeconds((int) ($credentials['expires_in'] ?? 3600)),
+            ];
+
+            if (! empty($credentials['refresh_token'])) {
+                $updates['refresh_token'] = $credentials['refresh_token'];
+            }
+
+            $account->forceFill($updates)->save();
+        });
     }
 
     /**
@@ -122,17 +137,25 @@ class GoogleAuthService
      */
     protected function storeAccount(SocialiteUser $googleUser): GoogleAccount
     {
-        return GoogleAccount::updateOrCreate(
-            ['user_id' => Auth::id()],
-            [
-                'google_id' => $googleUser->getId(),
-                'email' => $googleUser->getEmail(),
-                'access_token' => $googleUser->token,
-                'refresh_token' => $googleUser->refreshToken,
-                'expires_at' => $googleUser->expiresIn > 0 ? now()->addSeconds($googleUser->expiresIn) : null,
-                'scopes' => $googleUser->approvedScopes ?: self::SCOPES,
-            ],
-        );
+        $account = GoogleAccount::firstOrNew(['user_id' => Auth::id()]);
+
+        $account->fill([
+            'google_id' => $googleUser->getId(),
+            'email' => $googleUser->getEmail(),
+            'access_token' => $googleUser->token,
+            'expires_at' => (int) $googleUser->expiresIn > 0
+                ? now()->addSeconds((int) $googleUser->expiresIn)
+                : null,
+            'scopes' => $googleUser->approvedScopes ?: self::SCOPES,
+        ]);
+
+        if (! empty($googleUser->refreshToken)) {
+            $account->refresh_token = $googleUser->refreshToken;
+        }
+
+        $account->save();
+
+        return $account;
     }
 
     /**
@@ -140,6 +163,14 @@ class GoogleAuthService
      */
     protected function driver(): GoogleProvider
     {
+        $clientId = (string) config('services.google.client_id');
+        $clientSecret = (string) config('services.google.client_secret');
+        $redirectUri = (string) config('services.google.redirect');
+
+        if ($clientId === '' || $clientSecret === '' || $redirectUri === '') {
+            throw new RuntimeException('Google OAuth credentials are not configured.');
+        }
+
         $driver = $this->socialite->driver('google');
 
         if (! $driver instanceof GoogleProvider) {
@@ -147,8 +178,12 @@ class GoogleAuthService
         }
 
         return $driver
-            ->redirectUrl(route('google.callback'))
-            ->with(['access_type' => 'offline', 'prompt' => 'consent'])
+            ->redirectUrl($redirectUri)
+            ->with([
+                'access_type' => 'offline',
+                'prompt' => 'consent',
+                'include_granted_scopes' => 'true',
+            ])
             ->scopes(self::SCOPES);
     }
 }

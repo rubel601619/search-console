@@ -57,8 +57,8 @@ class GoogleAccount extends Model
     /**
      * Determine whether the access token is expired or missing.
      */
-    public function hasExpired(): bool
+    public function hasExpired(int $leewaySeconds = 60): bool
     {
-        return $this->expires_at === null || $this->expires_at->isPast();
+        return $this->expires_at === null || $this->expires_at->lte(now()->addSeconds($leewaySeconds));
     }
 }

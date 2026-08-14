@@ -10,12 +10,24 @@ use App\Support\SearchConsoleQuery;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class SearchConsoleController extends Controller
 {
     public function __construct(
         private readonly SearchConsoleService $searchConsoleService,
     ) {}
+
+    public function index(Request $request): Response
+    {
+        return Inertia::render('SearchConsole/Index', [
+            'googleConnected' => $request->user()?->googleAccount()->exists() ?? false,
+            'googleConfigured' => filled(config('services.google.client_id'))
+                && filled(config('services.google.client_secret'))
+                && filled(config('services.google.redirect')),
+        ]);
+    }
 
     public function properties(Request $request): JsonResponse
     {

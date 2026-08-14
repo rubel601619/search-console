@@ -8,7 +8,7 @@ Route::inertia('/', 'Welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
-    Route::inertia('search-console', 'SearchConsole/Index')->name('search-console');
+    Route::get('search-console', [SearchConsoleController::class, 'index'])->name('search-console');
 });
 
 Route::middleware('auth')->group(function () {

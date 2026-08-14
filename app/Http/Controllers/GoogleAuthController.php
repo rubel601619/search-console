@@ -33,7 +33,7 @@ class GoogleAuthController extends Controller
                 'message' => __('Google authorization was not completed.'),
             ]);
 
-            return redirect()->intended(route('dashboard'));
+            return redirect()->route('search-console');
         }
 
         try {
@@ -52,7 +52,7 @@ class GoogleAuthController extends Controller
             ]);
         }
 
-        return redirect()->intended(route('dashboard'));
+        return redirect()->route('search-console');
     }
 
     /**

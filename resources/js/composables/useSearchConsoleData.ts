@@ -25,7 +25,7 @@ export type SearchConsoleSection =
     | 'devices'
     | 'search-appearance';
 
-const DEFAULT_PER_PAGE = 10;
+const DEFAULT_PER_PAGE = 100;
 const MAX_ANALYTICS_DAYS = 1000;
 
 function toISODate(date: Date): string {
@@ -44,15 +44,18 @@ function daysBetween(startDate: string, endDate: string): number {
 }
 
 function defaultFilters(): SearchConsoleFilters {
-    const today = new Date();
-    const start = new Date(today);
+    const end = new Date();
+
+    end.setDate(end.getDate() - 3);
+
+    const start = new Date(end);
 
     start.setDate(start.getDate() - 27);
 
     return {
         property: '',
         startDate: toISODate(start),
-        endDate: toISODate(today),
+        endDate: toISODate(end),
         country: '',
         device: '',
         pageUrl: '',
@@ -85,7 +88,9 @@ export function useSearchConsoleData() {
         'search-appearance': false,
     });
 
-    const errors = reactive<Record<SearchConsoleSection, SearchConsoleError | null>>({
+    const errors = reactive<
+        Record<SearchConsoleSection, SearchConsoleError | null>
+    >({
         analytics: null,
         queries: null,
         pages: null,
@@ -103,7 +108,13 @@ export function useSearchConsoleData() {
     );
 
     function analyticsPerPage(): number {
-        return Math.min(Math.max(daysBetween(filters.value.startDate, filters.value.endDate), 1), MAX_ANALYTICS_DAYS);
+        return Math.min(
+            Math.max(
+                daysBetween(filters.value.startDate, filters.value.endDate),
+                1,
+            ),
+            MAX_ANALYTICS_DAYS,
+        );
     }
 
     async function loadProperties(): Promise<void> {
@@ -136,8 +147,20 @@ export function useSearchConsoleData() {
 
         try {
             const base = { ...filters.value };
-            const perPage = section === 'analytics' ? analyticsPerPage() : DEFAULT_PER_PAGE;
-            const page = section === 'queries' ? queriesPage.value : section === 'pages' ? pagesPage.value : 1;
+            const perPage =
+                section === 'analytics'
+                    ? analyticsPerPage()
+                    : section === 'countries'
+                      ? 250
+                      : section === 'devices'
+                        ? 10
+                        : DEFAULT_PER_PAGE;
+            const page =
+                section === 'queries'
+                    ? queriesPage.value
+                    : section === 'pages'
+                      ? pagesPage.value
+                      : 1;
 
             switch (section) {
                 case 'analytics':
@@ -156,11 +179,24 @@ export function useSearchConsoleData() {
                     devices.value = await fetchDevices(base, { perPage });
                     break;
                 case 'search-appearance':
-                    searchAppearance.value = await fetchSearchAppearance(base, { perPage });
+                    searchAppearance.value = await fetchSearchAppearance(base, {
+                        perPage,
+                    });
                     break;
             }
         } catch (error) {
-            errors[section] = toSearchConsoleError(error);
+            const normalizedError = toSearchConsoleError(error);
+
+            errors[section] = normalizedError;
+
+            if (
+                normalizedError.code === 'unauthorized' ||
+                normalizedError.code === 'not_connected'
+            ) {
+                propertiesError.value = normalizedError;
+                properties.value = [];
+                filters.value.property = '';
+            }
         } finally {
             loading[section] = false;
         }
@@ -195,14 +231,25 @@ export function useSearchConsoleData() {
         void loadAll();
     }
 
-    function applyFilters(next: Pick<SearchConsoleFilters, 'country' | 'device' | 'pageUrl' | 'query'>): void {
+    function applyFilters(
+        next: Pick<
+            SearchConsoleFilters,
+            'country' | 'device' | 'pageUrl' | 'query'
+        >,
+    ): void {
         filters.value = { ...filters.value, ...next };
         resetPagination();
         void loadAll();
     }
 
     function clearFilters(): void {
-        filters.value = { ...filters.value, country: '', device: '', pageUrl: '', query: '' };
+        filters.value = {
+            ...filters.value,
+            country: '',
+            device: '',
+            pageUrl: '',
+            query: '',
+        };
         resetPagination();
         void loadAll();
     }

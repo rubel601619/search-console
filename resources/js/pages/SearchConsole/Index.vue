@@ -22,6 +22,11 @@ import { useSearchConsoleData } from '@/composables/useSearchConsoleData';
 import { searchConsole } from '@/routes';
 import type { DateRange } from '@/types/search-console';
 
+const props = defineProps<{
+    googleConnected: boolean;
+    googleConfigured: boolean;
+}>();
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -60,13 +65,16 @@ const {
 } = useSearchConsoleData();
 
 onMounted(() => {
-    void loadProperties();
+    if (props.googleConnected) {
+        void loadProperties();
+    }
 });
 
 const needsConnection = computed(
     () =>
-        !propertiesLoading.value
-        && propertiesError.value?.code === 'not_connected',
+        !props.googleConnected ||
+        (!propertiesLoading.value &&
+            propertiesError.value?.code === 'not_connected'),
 );
 
 const hasProperties = computed(() => properties.value.length > 0);
@@ -87,8 +95,12 @@ const dateRange = computed<DateRange>({
 <template>
     <Head title="Search Console" />
 
-    <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div
+        class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4"
+    >
+        <div
+            class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+        >
             <div class="space-y-1">
                 <h1 class="text-lg font-semibold">Search Console</h1>
                 <p class="text-sm text-muted-foreground">
@@ -106,6 +118,13 @@ const dateRange = computed<DateRange>({
         <Skeleton v-if="propertiesLoading" class="h-32 w-full rounded-xl" />
 
         <EmptyState
+            v-else-if="!googleConfigured"
+            title="Google OAuth is not configured"
+            description="Add the Google client ID, client secret, and an authorized callback URL to the local environment before connecting."
+            :icon="PlugZap"
+        />
+
+        <EmptyState
             v-else-if="needsConnection"
             title="Connect your Google account"
             description="Connect a Google account with access to Google Search Console to start monitoring your organic performance."
@@ -120,8 +139,18 @@ const dateRange = computed<DateRange>({
             <CardContent>
                 <ErrorState
                     :error="propertiesError"
-                    :on-retry="loadProperties"
-                />
+                    :on-retry="
+                        propertiesError.retryable ? loadProperties : undefined
+                    "
+                >
+                    <Button
+                        v-if="propertiesError.code === 'unauthorized'"
+                        as-child
+                        size="sm"
+                    >
+                        <a :href="connect.url()">Reconnect Google account</a>
+                    </Button>
+                </ErrorState>
             </CardContent>
         </Card>
 

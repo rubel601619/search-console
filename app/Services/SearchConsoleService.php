@@ -258,14 +258,14 @@ class SearchConsoleService
         foreach ($rows as $row) {
             $clicks += $row['clicks'];
             $impressions += $row['impressions'];
-            $weightedPosition += $row['position'] * $row['clicks'];
+            $weightedPosition += $row['position'] * $row['impressions'];
         }
 
         return [
             'clicks' => $clicks,
             'impressions' => $impressions,
             'ctr' => $impressions > 0 ? round($clicks / $impressions, 4) : 0.0,
-            'position' => $clicks > 0 ? round($weightedPosition / $clicks, 2) : 0.0,
+            'position' => $impressions > 0 ? round($weightedPosition / $impressions, 2) : 0.0,
         ];
     }
 
