@@ -14,10 +14,13 @@ export default defineConfig({
             fonts: [
                 bunny('Instrument Sans', {
                     weights: [400, 500, 600],
+                    optimizedFallbacks: false,
                 }),
             ],
         }),
-        inertia(),
+        inertia({
+            ssr: false,
+        }),
         tailwindcss(),
         vue({
             template: {

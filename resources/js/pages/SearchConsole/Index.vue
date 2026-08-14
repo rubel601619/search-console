@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
 import { PlugZap, Satellite } from '@lucide/vue';
 import { computed, onMounted } from 'vue';
 import { connect } from '@/actions/App/Http/Controllers/GoogleAuthController';
@@ -112,7 +112,7 @@ const dateRange = computed<DateRange>({
             :icon="PlugZap"
         >
             <Button as-child>
-                <Link :href="connect.url()">Connect Google account</Link>
+                <a :href="connect.url()">Connect Google account</a>
             </Button>
         </EmptyState>
 
