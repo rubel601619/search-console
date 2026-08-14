@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ListFilter, RotateCcw } from '@lucide/vue';
-import { reactive, watch } from 'vue';
+import { computed, reactive, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -34,11 +34,27 @@ const COUNTRY_CODES = [
     'NLD', 'ESP', 'MEX', 'KOR', 'TUR', 'POL', 'SWE', 'CHE', 'ARG', 'IDN',
 ];
 
+const ALL_FILTER_VALUE = '__all__';
+
 const draft = reactive({
     country: props.country,
     device: props.device,
     pageUrl: props.pageUrl,
     query: props.query,
+});
+
+const selectedCountry = computed({
+    get: () => draft.country || ALL_FILTER_VALUE,
+    set: (value: string) => {
+        draft.country = value === ALL_FILTER_VALUE ? '' : value;
+    },
+});
+
+const selectedDevice = computed({
+    get: () => draft.device || ALL_FILTER_VALUE,
+    set: (value: string) => {
+        draft.device = value === ALL_FILTER_VALUE ? '' : value;
+    },
 });
 
 watch(
@@ -86,12 +102,12 @@ function reset(): void {
         <CardContent class="grid gap-4 pb-4 md:grid-cols-2 xl:grid-cols-4">
             <div class="space-y-1.5">
                 <Label for="filter-country" class="text-xs text-muted-foreground">Country</Label>
-                <Select v-model="draft.country" :disabled="disabled">
+                <Select v-model="selectedCountry" :disabled="disabled">
                     <SelectTrigger id="filter-country" class="w-full">
                         <SelectValue placeholder="All countries" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">All countries</SelectItem>
+                        <SelectItem :value="ALL_FILTER_VALUE">All countries</SelectItem>
                         <SelectItem
                             v-for="code in COUNTRY_CODES"
                             :key="code"
@@ -104,12 +120,12 @@ function reset(): void {
             </div>
             <div class="space-y-1.5">
                 <Label for="filter-device" class="text-xs text-muted-foreground">Device</Label>
-                <Select v-model="draft.device" :disabled="disabled">
+                <Select v-model="selectedDevice" :disabled="disabled">
                     <SelectTrigger id="filter-device" class="w-full">
                         <SelectValue placeholder="All devices" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">All devices</SelectItem>
+                        <SelectItem :value="ALL_FILTER_VALUE">All devices</SelectItem>
                         <SelectItem value="DESKTOP">Desktop</SelectItem>
                         <SelectItem value="MOBILE">Mobile</SelectItem>
                         <SelectItem value="TABLET">Tablet</SelectItem>
