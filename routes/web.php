@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\SearchConsoleController;
+use App\Http\Controllers\SemrushController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
@@ -9,6 +10,7 @@ Route::inertia('/', 'Welcome')->name('home');
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
     Route::get('search-console', [SearchConsoleController::class, 'index'])->name('search-console');
+    Route::get('semrush', [SemrushController::class, 'index'])->name('semrush');
 });
 
 Route::middleware('auth')->group(function () {
@@ -24,6 +26,15 @@ Route::middleware('auth')->group(function () {
         Route::get('countries', [SearchConsoleController::class, 'countries'])->name('countries');
         Route::get('devices', [SearchConsoleController::class, 'devices'])->name('devices');
         Route::get('search-appearance', [SearchConsoleController::class, 'searchAppearance'])->name('search-appearance');
+    });
+
+    Route::middleware('throttle:60,1')->prefix('api/semrush')->name('semrush.')->group(function () {
+        Route::get('balance', [SemrushController::class, 'apiBalance'])->name('balance');
+        Route::get('domain-overview', [SemrushController::class, 'domainOverview'])->name('domain-overview');
+        Route::get('organic-keywords', [SemrushController::class, 'organicKeywords'])->name('organic-keywords');
+        Route::get('competitors', [SemrushController::class, 'competitors'])->name('competitors');
+        Route::get('backlinks', [SemrushController::class, 'backlinks'])->name('backlinks');
+        Route::get('keyword-overview', [SemrushController::class, 'keywordOverview'])->name('keyword-overview');
     });
 });
 

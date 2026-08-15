@@ -34,4 +34,10 @@ export default defineConfig({
             formVariants: true,
         }),
     ],
+    server: {
+        host: '127.0.0.1',
+        watch: {
+            ignored: ['**/vendor/**', '**/node_modules/**', '**/.git/**'],
+        },
+    },
 });
